@@ -1,0 +1,47 @@
+Tunneldigger für den PC. 
+Verbindet den PC direkt mit einer 3F Hood via l2tp.
+
+Es wird nur IPv6 gemacht, um die Router zu erreichen fdff:....
+Man kann im Monitoring auf Webui Klicken.
+
+Kein IPv4!!!
+
+Installation:
+
+1. Batman und batctl nach dieser Anleitung installieren:
+
+https://wiki.freifunk-franken.de/w/Freifunk-Gateway_aufsetzen#B.A.T.M.A.N._adv_2013.4.0_Kernel-Modul
+
+2. Als root setup.sh ausführen
+
+
+usage:  tunneldigger [show|connect|disconnect|s|c|d] 
+        tunneldigger  show   [hoods|tunnel]
+        tunneldigger  connect <hood>
+        tunneldigger edit
+
+
+Konfiguration:
+
+In /etc/tunneldigger/hoods werden die Gateways im json Format eingetragen.
+Man benötigt IP und Port für die Hood.
+
+Beispiel:
+
+{
+ "has": {
+  "port": "20004",
+  "ip": "5.196.164.9"
+ },
+ "has-sued": {
+  "port": "20001",
+  "ip": "163.172.161.233"
+ },
+ "aschburg": {
+  "port": "20007",
+  "ip": "188.40.170.116"
+ }
+
+}
+
+
