@@ -11,6 +11,7 @@ apt-get -y install jshon
 echo; echo "Kopiere Dateien:"
 
 cp -r ./files/* /
+cp -r -n ./config/* /
 
 echo fertig
 echo
