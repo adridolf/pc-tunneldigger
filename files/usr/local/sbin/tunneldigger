@@ -58,7 +58,11 @@ case "$1" in
 
 		uuid=$HOSTNAME
 		hood=$2
-		IP="$(jshon.tgg -e "$hood" -e ip -u)" || ( echo "Abbruch: $hood nicht konfiguriert"; exit 1 )
+		IP="$(jshon.tgg -e "$hood" -e ip -u)"
+		if [ ! -n "$IP" ] ; then
+			echo "Abbruch: $hood nicht konfiguriert"
+			exit 1
+		fi
 		port="$(jshon.tgg -e "$hood" -e port -u)"
 		
 		connect_to_hood "$IP" "$port"
@@ -76,7 +80,11 @@ case "$1" in
 		hood="$2"
 		cnt="$3"
 		
-		lat="$(jshon.geo -e "$hood" -e lat -u)" || ( echo "Abbruch: $hood nicht bekannt"; exit 1 )
+		lat="$(jshon.geo -e "$hood" -e lat -u)"
+		if [ ! -n "$lat" ] ; then
+			echo "Abbruch: $hood nicht bekannt"
+			exit 1
+		fi
 		lon="$(jshon.geo -e "$hood" -e lon -u)"
 		
 		wget -T15 "http://keyserver.freifunk-franken.de/fff/geo.php?name=pctunneldigger&key=000000000000&lat=$lat&long=$lon" -O /tmp/fastd_fff_output &> /dev/null
