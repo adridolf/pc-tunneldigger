@@ -16,15 +16,22 @@ https://wiki.freifunk-franken.de/w/Freifunk-Gateway_aufsetzen#B.A.T.M.A.N._adv_2
 
 
 usage:  tunneldigger [show|connect|disconnect|s|c|d] 
-        tunneldigger  show   [hoods|tunnel]
-        tunneldigger  connect <hood>
+        tunneldigger show [hoods|tunnel]
+        tunneldigger connect <hood>
+        tunneldigger geoconnect <hood> [<server_no>]
         tunneldigger edit
 
 
 Konfiguration:
 
+Bei Verwendung von "geoconnect" werden die Server über die Koordinaten von KeyXchange abgerufen.
+Stehen mehrere Server zur Verfügung, wird der erste genommen, außer eine laufende Nr. wird als <server_no> (optional) festgelegt.
+
+Die entsprechenden Koordinaten liegen in /etc/tunneldigger/geo.
+
+Bei Verwendung von "connect" müssen jeweils die gateway IP und der L2TP port hinterlegt werden.
 In /etc/tunneldigger/hoods werden die Gateways im json Format eingetragen.
-Man benötigt IP und Port für die Hood.
+Alternativ kann mittels "tunneldigger edit" eingetragen und geändert werden.
 
 Beispiel:
 

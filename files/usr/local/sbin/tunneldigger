@@ -7,9 +7,32 @@ fi
 
 # tunneldigger hoods im json-Format
 tdhoods="/etc/tunneldigger/hoods"
+tdgeo="/etc/tunneldigger/geo"
 
 jshon.tgg() {
 	jshon -F ${tdhoods} $@
+}
+jshon.geo() {
+	jshon -F ${tdgeo} $@
+}
+connect_to_hood() {
+	uuid=$HOSTNAME
+	IP="$1"
+	port="$2"
+	hook="/etc/tunneldigger/tunneldigger.hook"
+	# first killall tunneldigger
+	batctl if del l2tp1 2>/dev/null
+	killall l2tp_client 2>/dev/null
+	l2tp_client  -u "$uuid" -b "$IP:$port" -i l2tp1 -s "$hook" & 
+	echo 
+	echo -n "dauert einen Moment ."
+	while true ; do
+			sleep 1 
+			echo -n .
+			ip a s dev bat0 &>/dev/null && break
+	done
+	echo 
+	echo "bat0 ist up!"
 }
 
 case "$1" in 
@@ -35,22 +58,51 @@ case "$1" in
 
 		uuid=$HOSTNAME
 		hood=$2
-		ip=$(jshon.tgg -e $hood -e ip -u) || echo "$hood nicht konfiguriert"
-		port=$(jshon.tgg -e $hood -e port -u)
-		hook="/etc/tunneldigger/tunneldigger.hook"
-		# first killall tunneldigger
-		batctl if del l2tp1 2>/dev/null
-		killall l2tp_client 2>/dev/null
-		l2tp_client  -u "$uuid" -b "$ip:$port" -i l2tp1 -s "$hook" & 
-		echo 
-		echo -n "dauert einen Moment ."
-		while true ; do
-				sleep 1 
-				echo -n .
-				ip a s dev bat0 &>/dev/null && break
-		done
-		echo 
-		echo "bat0 ist up!"
+		IP="$(jshon.tgg -e "$hood" -e ip -u)" || ( echo "Abbruch: $hood nicht konfiguriert"; exit 1 )
+		port="$(jshon.tgg -e "$hood" -e port -u)"
+		
+		connect_to_hood "$IP" "$port"
+		;;
+
+	g*)
+		ip a | grep "inet6 fdff" && echo "Du bist schon im fff-Netz, dann geht's net" && exit
+		
+		if [ -z "$2" ]; then
+			echo "usage: tunneldigger geoconnect <hood> [<server_no>]" 
+			exit
+		fi
+
+		uuid=$HOSTNAME
+		hood="$2"
+		cnt="$3"
+		
+		lat="$(jshon.geo -e "$hood" -e lat -u)" || ( echo "Abbruch: $hood nicht bekannt"; exit 1 )
+		lon="$(jshon.geo -e "$hood" -e lon -u)"
+		
+		wget -T15 "http://keyserver.freifunk-franken.de/fff/geo.php?name=pctunneldigger&key=000000000000&lat=$lat&long=$lon" -O /tmp/fastd_fff_output &> /dev/null
+		
+		counter=0
+		while read -r line ; do
+			counter=$((counter + 1))
+			if [ -n "$cnt" ] && ! [ "$counter" -eq "$cnt" ] ; then
+				continue
+			fi
+			IP="$(echo "$line" | grep -oP 'remote ipv4 "\K[0-9.]+(?=")')"
+			svport=$(echo "$line" | grep -oP 'remote ipv4 "[0-9.]+" port \K[0-9]+')
+			if [ "l2tp" = "$(wget -T10 "$IP/vpn.txt" -O - 2>/dev/null)" ]; then
+				port=$((svport + 10000))
+				break
+			fi
+		done <<< "$(grep 'remote ipv4' /tmp/fastd_fff_output)"
+		echo "Gateway IP: $IP"
+		echo "L2TP Port: $port"
+		
+		if [ ! -n "$port" ] ; then
+			echo "No L2TP server found!"
+			exit 1
+		fi
+		
+		connect_to_hood "$IP" "$port"
 		;;
 
 	d*)
@@ -114,8 +166,9 @@ case "$1" in
         done 
         ;;
 	*)
-		echo "usage: tunneldigger [show|connect|disconnect|edit]"
-		echo "Neue Hoods werden mit edit in /etc/tunneldigger/hoods eingetragen (json Format)";;
+		echo "usage: tunneldigger [show|connect|geoconnect|disconnect|edit]"
+		echo "Neue Hoods werden mit edit in /etc/tunneldigger/hoods bzw."
+		echo "manuell in /etc/tunneldigger/geo eingetragen (json Format)";;
 esac	
 
 
