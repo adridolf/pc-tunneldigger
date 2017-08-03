@@ -10,7 +10,7 @@ apt-get -y install jshon
 
 echo; echo "Kopiere Dateien:"
 
-tar -Pxzvf files.tgz
+cp -r ./files/* /
 
 echo fertig
 echo

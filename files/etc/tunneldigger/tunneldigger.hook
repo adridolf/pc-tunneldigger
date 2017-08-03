@@ -1,0 +1,12 @@
+#!/bin/bash
+
+HOOK=$1
+INTERFACE=$2
+
+if [ "$HOOK" = session.up ]; then
+	ip l s dev $INTERFACE up
+	batctl if add $INTERFACE
+	ip l s dev bat0 up
+	ipv6=$(ip a show dev bat0 | awk '/fe80/ { print $2}' | sed 's/fe80/fdff/')
+	ip addr add $ipv6 dev bat0
+fi

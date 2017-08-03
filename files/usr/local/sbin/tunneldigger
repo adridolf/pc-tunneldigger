@@ -1,0 +1,122 @@
+#!/bin/bash
+
+if [ ! -e /usr/bin/jshon ]; then
+	echo "jshon fehlt! Installiere mit apt-get install jshon"
+	exit
+fi
+
+# tunneldigger hoods im json-Format
+tdhoods="/etc/tunneldigger/hoods"
+
+jshon.tgg() {
+	jshon -F ${tdhoods} $@
+}
+
+case "$1" in 
+	s*)
+		case $2 in
+			h*) 	for hood in $(jshon.tgg -k) ; do
+					echo $hood
+					echo -n "GW IP: "
+					jshon.tgg -e $hood -e ip -u
+					echo "---"
+				done
+				;;
+			t*) ip l2tp show tunnel 2>/dev/null;;
+			*)	echo "usage: tunneldigger show [hoods|tunnel]";;
+		esac;;
+	c*)
+		ip a | grep "inet6 fdff" && echo "Du bist schon im fff-Netz, dann geht's net" && exit
+		
+		if [ -z "$2" ]; then
+			echo "usage: tunneldigger connect <hood>" 
+			exit
+		fi
+
+		uuid=$HOSTNAME
+		hood=$2
+		ip=$(jshon.tgg -e $hood -e ip -u) || echo "$hood nicht konfiguriert"
+		port=$(jshon.tgg -e $hood -e port -u)
+		hook="/etc/tunneldigger/tunneldigger.hook"
+		# first killall tunneldigger
+		batctl if del l2tp1 2>/dev/null
+		killall l2tp_client 2>/dev/null
+		l2tp_client  -u "$uuid" -b "$ip:$port" -i l2tp1 -s "$hook" & 
+		echo 
+		echo -n "dauert einen Moment ."
+		while true ; do
+				sleep 1 
+				echo -n .
+				ip a s dev bat0 &>/dev/null && break
+		done
+		echo 
+		echo "bat0 ist up!"
+		;;
+
+	d*)
+		# killall tunneldigger
+		batctl if del l2tp1 2>/dev/null
+		killall l2tp_client 2>/dev/null ;;
+
+    e*)
+        # edit /etc/tunneldigger/hoods
+
+        PS3="Your choice: "
+        select action in "show hoods" "add hood" "del hood" "edit hood"; do
+            case $action in
+                "show hoods")
+                    jshon.tgg -k ;;
+                "del hood")
+                    select hood in $(jshon.tgg -k) ; do
+                        jshon -d $hood < $tdhoods > /tmp/hoods.tmp
+                        mv /tmp/hoods.tmp $tdhoods
+                        echo "hood $hood gelöscht!"
+                        exit
+                    done
+                ;;
+                "edit hood")
+                    select hood in $(jshon.tgg -k) ; do 
+                        jshon.tgg -e $hood
+                        echo -n "Port: "; read port
+                        echo -n "IP:   "; read ip
+                        jshon -e $hood -s $port -i port -s $ip -i ip -i $hood < $tdhoods > /tmp/hoods.tmp                        
+                        mv /tmp/hoods.tmp $tdhoods
+                        echo "hood $hood geändert ->"
+                        jshon.tgg -e $hood 
+                        exit
+                    done
+                ;;
+                "add hood")
+                    echo "neue hood"
+                    echo -n "hood:  "; read hood
+                    echo -n "port:  "; read port
+                    echo -n "ip  :  "; read ip
+                    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                        for i in 1 2 3 4; do
+                            if [ $(echo "$ip" | cut -d. -f$i) -gt 255 ]; then
+                                echo "$ip - falsches format!"
+                                exit 1
+                            fi
+                        done
+                        key=$(jshon.tgg -k | tail -1)
+                        jshon -e $key -i $hood < $tdhoods > /tmp/hoods.tmp
+                        jshon -e $hood -s $port -i port -s $ip -i ip -i $hood </tmp/hoods.tmp > $tdhoods
+                        echo "hood $hood hinzugefügt ->"
+                        jshon.tgg -e $hood
+                        exit
+                    else
+                        echo "$ip - falsches format!"
+                        exit 1
+                    fi
+
+            esac
+        
+        done 
+        ;;
+	*)
+		echo "usage: tunneldigger [show|connect|disconnect|edit]"
+		echo "Neue Hoods werden mit edit in /etc/tunneldigger/hoods eingetragen (json Format)";;
+esac	
+
+
+# vi: set ts=4
